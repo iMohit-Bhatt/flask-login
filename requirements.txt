@@ -4,3 +4,5 @@ flask-login
 Flask-Bcrypt
 Flask-WTF
 Werkzeug==2.3
+marshmallow
+psycopg2
