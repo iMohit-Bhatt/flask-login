@@ -4,7 +4,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import InputRequired, Length, ValidationError
 from flask_login import UserMixin, LoginManager, login_user, logout_user, login_required
-from flask_bcrypt import bcrypt
+import bcrypt
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
@@ -23,18 +23,18 @@ def load_user(user_id):
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key = True)
     username = db.Column(db.String(20), nullable= False, unique= True)
-    password = db.Column(db.String(80), nullable= False)
+    password = db.Column(db.String(100), nullable= False)
 
 class RegisterForm(FlaskForm):
     username = StringField(validators=[InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
-    password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
+    password = PasswordField(validators=[InputRequired(), Length(min=4, max=100)], render_kw={"placeholder": "Password"})
 
     submit = SubmitField("Register")
         
 
 class LoginForm(FlaskForm):
     username = StringField(validators=[InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
-    password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
+    password = PasswordField(validators=[InputRequired(), Length(min=4, max=100)], render_kw={"placeholder": "Password"})
 
     submit = SubmitField("Login")
 
@@ -53,7 +53,9 @@ def login():
     if request.method == "POST":
         user = db.session.execute(db.select(User).where(User.username == form.username.data)).scalar()
         if user:
-            if user.password == form.password.data:
+            # if user.password == form.password.data:
+            if bcrypt.checkpw(form.password.data.encode('utf-8'), user.password):
+                print("correct password")
                 login_user(user)
                 return redirect(url_for('dashboard'))
             
@@ -66,8 +68,11 @@ def register():
     if request.method == "POST":
         user = db.session.execute(db.select(User).where(User.username == form.username.data)).scalar()
         if user:
-            return redirect(url_for('register'))        
-        new_user = User(username=form.username.data, password= form.username.data)
+            return redirect(url_for('register'))   
+        password = form.password.data.encode('utf-8')
+        hashed_pass = bcrypt.hashpw(password, bcrypt.gensalt())
+        print(hashed_pass)   
+        new_user = User(username=form.username.data, password= hashed_pass)
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
